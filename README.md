@@ -1,5 +1,7 @@
 # Ripster Cloud Planner v2
 
+**[Launch the planner](https://mendozaolives.github.io/ripster-planner/ripster-cloud-planner-v2.html)** · [GitHub repo](https://github.com/mendozaolives/ripster-planner)
+
 A single-file browser tool for planning SPY 0DTE options trades using the **Ripster EMA Clouds** indicator on TradingView.
 
 ## What It Does
