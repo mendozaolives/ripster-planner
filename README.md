@@ -40,13 +40,27 @@ The planner uses two EMA clouds:
 - **Stop & exit rules** — hard stop level, trail trigger, take-profit condition
 - **Position sizing** — configurable max risk ($) and contract count
 
-## Files
+## File Structure
 
 ```
-ripster-cloud-planner-v2.html   — the entire app, self-contained
+ripster-planner/
+├── index.html                        # main entry point (links to assets below)
+├── ripster-cloud-planner-v2.html     # original standalone version (no external deps)
+├── README.md
+│
+├── assets/
+│   ├── css/
+│   │   └── styles.css                # all styles
+│   ├── js/
+│   │   ├── planner.js                # calc logic, UI updates, shared state
+│   │   └── bookmarklet.js            # bookmarklet code + clipboard paste
+│   └── img/                          # icons, screenshots (future)
+│
+├── tools/                            # additional tools/pages (future)
+└── docs/                             # extended documentation (future)
 ```
 
-No dependencies, no build step, no server required. Open the HTML file directly in any modern browser.
+No dependencies, no build step, no server required. Open `index.html` directly in any modern browser, or use the [live link](https://mendozaolives.github.io/ripster-planner/) via GitHub Pages.
 
 ## Usage Notes
 

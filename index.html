@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ripster Cloud Planner v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">☁</div>
+    RIPSTER CLOUD PLANNER v2
+  </div>
+  <div class="header-pill"><div class="live-dot"></div> TradingView Script · SPY 0DTE</div>
+</header>
+
+<div class="container">
+
+  <!-- Direction banner -->
+  <div class="dir-banner" id="dir-banner">
+    <div class="dir-left">
+      <div class="dir-icon" id="dir-icon"></div>
+      <div>
+        <div class="dir-title" id="dir-title"></div>
+        <div class="dir-sub"   id="dir-sub"></div>
+      </div>
+    </div>
+    <div class="dir-badges" id="dir-badges"></div>
+  </div>
+
+  <!-- ── Bookmarklet Setup ── -->
+  <div class="section-head">One-time setup</div>
+
+  <div class="setup-card">
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Install the TradingView bookmarklet</div>
+    <div style="font-size:12px;color:var(--muted)">Do this once — then click it anytime on a TradingView chart to instantly read your cloud values.</div>
+
+    <div class="setup-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Drag this button to your bookmark bar:</strong><br>
+          <a class="bookmarklet-btn" id="bookmarklet-link" href="#">
+            ☁ Read Ripster Clouds
+          </a>
+          <div class="dim">If dragging doesn't work, right-click → "Add to bookmarks" and paste the URL manually.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Go to your TradingView chart</strong> with the Ripster clouds visible. Make sure the right-side price axis is showing the EMA labels (the colored boxes).
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Click the bookmarklet.</strong> It reads the cloud values from the page and copies them to your clipboard. You'll see a green toast notification confirming success.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <strong>Come back here and click "Paste from TradingView"</strong> below. Fields auto-fill and the trade plan calculates immediately.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Paste & Calculate ── -->
+  <div class="section-head">Read &amp; calculate</div>
+
+  <button class="paste-btn" id="paste-btn" onclick="pasteFromClipboard()">
+    📋 Paste from TradingView
+  </button>
+
+  <div class="status-bar" id="status-bar">
+    <span id="status-text"></span>
+  </div>
+
+  <div class="last-read" id="last-read">
+    <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Last read from TradingView</div>
+    <div id="last-read-rows"></div>
+  </div>
+
+  <!-- ── Planner ── -->
+  <div class="grid-2" style="align-items:start">
+    <div>
+      <div class="card">
+        <div class="card-title">Cloud values <span style="font-size:10px;font-weight:400;color:var(--muted);margin-left:4px">— auto-filled or edit manually</span></div>
+
+        <div class="cloud-pair">
+          <div class="cloud-pair-label">
+            <span class="swatch" id="slow-swatch" style="background:#3fb950"></span>
+            <span id="slow-label" style="color:var(--green-txt);font-size:11px;font-weight:600">Slow cloud — 34/50 EMA</span>
+          </div>
+          <div class="field"><label>Cloud top</label><input type="number" id="slowTop" step="0.25" placeholder="—"></div>
+          <div class="field"><label>Cloud bottom</label><input type="number" id="slowBot" step="0.25" placeholder="—"></div>
+        </div>
+
+        <div class="cloud-pair">
+          <div class="cloud-pair-label">
+            <span class="swatch" id="fast-swatch" style="background:#388bfd"></span>
+            <span id="fast-label" style="color:var(--blue-txt);font-size:11px;font-weight:600">Fast cloud — 5/12 EMA</span>
+          </div>
+          <div class="field"><label>Cloud top</label><input type="number" id="fastTop" step="0.25" placeholder="—"></div>
+          <div class="field"><label>Cloud bottom</label><input type="number" id="fastBot" step="0.25" placeholder="—"></div>
+        </div>
+
+        <div class="cloud-pair" style="margin-bottom:0">
+          <div class="field"><label>SPY price</label><input type="number" id="spyPrice" step="0.01" placeholder="—"></div>
+          <div class="field"><label>Time ET (e.g. 11.5 = 11:30)</label><input type="number" id="spyHour" step="0.5" min="9" max="16" placeholder="—"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">Position sizing</div>
+        <div class="cloud-pair" style="margin-bottom:0">
+          <div class="field"><label>Max risk per trade ($)</label><input type="number" id="risk" value="100" step="10"></div>
+          <div class="field"><label>Contracts</label><input type="number" id="contracts" value="1" min="1"></div>
+        </div>
+      </div>
+
+      <button class="calc-btn" id="calc-btn" onclick="calc()" style="margin-top:14px;background:var(--muted);color:#0d1117">Calculate entry</button>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Setup read</div>
+        <div id="badges" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+          <span class="badge bm">Paste TradingView values to begin</span>
+        </div>
+        <div id="signals"></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">Entry ladder</div>
+        <div id="ladder" class="ladder"><span style="color:var(--muted);font-size:12px">Waiting for values...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="output" class="hidden">
+    <div class="section-head">Trade plan</div>
+    <div class="grid-5" id="metrics"></div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">Entry levels</div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Setup</th><th>Strike</th><th>SPY entry ~</th><th>Hard stop</th><th>Target 1</th><th>Target 2</th></tr></thead>
+          <tbody id="etbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">Stop loss &amp; exit rules</div><div id="stopRules"></div></div>
+  </div>
+
+</div>
+
+<!-- planner.js must load before bookmarklet.js (bookmarklet calls populateAndCalc) -->
+<script src="assets/js/planner.js"></script>
+<script src="assets/js/bookmarklet.js"></script>
+</body>
+</html>
