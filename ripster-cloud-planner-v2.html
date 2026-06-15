@@ -146,7 +146,7 @@
     <div class="logo-mark">☁</div>
     RIPSTER CLOUD PLANNER v2
   </div>
-  <div class="header-pill"><div class="live-dot"></div> TradingView Script · SPY 0DTE</div>
+  <div class="header-pill"><div class="live-dot"></div> TradingView Script · <span id="header-ticker">0DTE</span></div>
 </header>
 
 <div class="container">
@@ -243,7 +243,7 @@
         </div>
 
         <div class="cloud-pair" style="margin-bottom:0">
-          <div class="field"><label>SPY price</label><input type="number" id="spyPrice" step="0.01" placeholder="—"></div>
+          <div class="field"><label id="price-label">Price</label><input type="number" id="spyPrice" step="0.01" placeholder="—"></div>
           <div class="field"><label>Time ET (e.g. 11.5 = 11:30)</label><input type="number" id="spyHour" step="0.5" min="9" max="16" placeholder="—"></div>
         </div>
       </div>
@@ -349,26 +349,28 @@ const bookmarkletCode = `(function(){
   var fastTop    = Math.max(last[5], last[15]);
   var fastBottom = Math.min(last[5], last[15]);
 
-  // ── Current SPY price from OHLC header ──
-  var currentPrice=null;
-  var cm=(document.body.innerText||'').match(/\\bC[\\s:]*([2-9]\\d{2}\\.\\d{2})\\b/);
-  if(cm) currentPrice=parseFloat(cm[1]);
+  // ── Ticker symbol (three fallbacks) ──
+  var ticker=null;
+  try{ var sym=chart.symbol(); if(sym) ticker=sym.split(':').pop(); }catch(e){}
+  if(!ticker){ var um=location.search.match(/[?&]symbol=(?:[^:]+:)?([A-Z0-9\\.]+)/i); if(um) ticker=um[1].toUpperCase(); }
+  if(!ticker){ var tm=document.title.match(/^([A-Z0-9\\.\\-]+)\\s+(?:Chart|chart)/); if(tm) ticker=tm[1]; }
 
-  // ── Bullish / bearish from EMA positioning ──
-  // Bullish: fast cloud (5/12) sits BELOW slow cloud (34/50) → fastBottom < slowBottom
-  // Bearish: fast cloud (5/12) sits ABOVE slow cloud (34/50) → fastBottom >= slowBottom
-  // Bullish: fast cloud (5/12) center is BELOW slow cloud (34/50) center
+  // ── Current price from OHLC header (works for any ticker) ──
+  var currentPrice=null;
+  var cm=(document.body.innerText||'').match(/\\bC[\\s:]*([\\d,]+\\.?\\d*)\\b/);
+  if(cm) currentPrice=parseFloat(cm[1].replace(/,/g,''));
+
   var slowCenter = (slowTop + slowBottom) / 2;
   var fastCenter = (fastTop + fastBottom) / 2;
   var setup = fastCenter < slowCenter ? 'bullish' : 'bearish';
 
-  // ── Time ET (UTC-4 EDT) ──
   var now=new Date();
   var etHour=((now.getUTCHours()-4+24)%24)+now.getUTCMinutes()/60;
 
   var result={
     setup:setup,
-    spy_price:currentPrice,
+    ticker:ticker,
+    price:currentPrice,
     time_et:parseFloat(etHour.toFixed(2)),
     slow_cloud_top:parseFloat(slowTop.toFixed(2)),
     slow_cloud_bottom:parseFloat(slowBottom.toFixed(2)),
@@ -380,8 +382,9 @@ const bookmarkletCode = `(function(){
     var gap=(slowBottom-fastTop).toFixed(2);
     toast(
       '<strong>☁ Ripster clouds copied!</strong>\\n'+
+      (ticker?ticker+' · ':'')+
       (setup==='bullish'?'🟢 Bullish':'🔴 Bearish')+
-      (currentPrice?'  ·  SPY $'+currentPrice.toFixed(2):'')+
+      (currentPrice?'  ·  $'+currentPrice.toFixed(2):'')+
       '\\nSlow (34/50): '+slowTop.toFixed(2)+' / '+slowBottom.toFixed(2)+
       '\\nFast  (5/12): '+fastTop.toFixed(2)+' / '+fastBottom.toFixed(2)+
       '\\nGap: '+gap+' pts'
@@ -432,6 +435,7 @@ async function pasteFromClipboard() {
 
 // ── State ──
 let isBull = true;
+let currentTicker = '';
 const f = n => parseFloat(n).toFixed(2);
 function badge(txt, cls) { return `<span class="badge ${cls}">${txt}</span>`; }
 function sig(color, html) { return `<div class="signal"><span class="sdot" style="background:${color}"></span><span>${html}</span></div>`; }
@@ -463,21 +467,29 @@ function populateAndCalc(v) {
   const bull = v.setup !== 'bearish';
   applyTheme(bull);
 
+  const price = v.price ?? v.spy_price ?? null;
+
+  if (v.ticker) {
+    currentTicker = v.ticker;
+    document.getElementById('price-label').textContent = v.ticker + ' price';
+    document.getElementById('header-ticker').textContent = v.ticker + ' 0DTE';
+  }
+
   setField('slowTop',  v.slow_cloud_top);
   setField('slowBot',  v.slow_cloud_bottom);
   setField('fastTop',  v.fast_cloud_top);
   setField('fastBot',  v.fast_cloud_bottom);
-  if (v.spy_price)  setField('spyPrice', v.spy_price);
-  if (v.time_et)    setField('spyHour',  v.time_et);
+  if (price)     setField('spyPrice', price);
+  if (v.time_et) setField('spyHour',  v.time_et);
 
-  // Show last read
+  const tickerLabel = currentTicker || 'Price';
   const lr = document.getElementById('last-read');
   lr.style.display = 'block';
   document.getElementById('last-read-rows').innerHTML = `
     <div class="last-read-row"><span class="lr-label">Setup</span><span class="lr-val ${bull?'cg':'cr'}">${bull?'🟢 Bullish':'🔴 Bearish'}</span></div>
     <div class="last-read-row"><span class="lr-label">${bull?'Green':'Red'} cloud (slow)</span><span class="lr-val">${f(v.slow_cloud_bottom)} – ${f(v.slow_cloud_top)}</span></div>
     <div class="last-read-row"><span class="lr-label">${bull?'Blue':'Yellow'} cloud (fast)</span><span class="lr-val">${f(v.fast_cloud_bottom)} – ${f(v.fast_cloud_top)}</span></div>
-    <div class="last-read-row"><span class="lr-label">SPY price</span><span class="lr-val">${v.spy_price ? '$'+f(v.spy_price) : '—'}</span></div>
+    <div class="last-read-row"><span class="lr-label">${tickerLabel} price</span><span class="lr-val">${price ? '$'+f(price) : '—'}</span></div>
     <div class="last-read-row"><span class="lr-label">Time ET</span><span class="lr-val">${v.time_et ? Math.floor(v.time_et)+':'+String(Math.round((v.time_et%1)*60)).padStart(2,'0') : '—'}</span></div>
   `;
 

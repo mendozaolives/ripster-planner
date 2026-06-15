@@ -52,16 +52,11 @@ const bookmarkletCode = `(function(){
   var fastTop    = Math.max(last[5], last[15]);
   var fastBottom = Math.min(last[5], last[15]);
 
-  // ── Ticker symbol ──
+  // ── Ticker symbol (three fallbacks) ──
   var ticker = null;
-  try {
-    var sym = chart.symbol();
-    if (sym) ticker = sym.split(':').pop();
-  } catch(e) {}
-  if (!ticker) {
-    var um = location.search.match(/[?&]symbol=(?:[^:]+:)?([A-Z0-9\\.]+)/i);
-    if (um) ticker = um[1].toUpperCase();
-  }
+  try { var sym=chart.symbol(); if(sym) ticker=sym.split(':').pop(); } catch(e) {}
+  if (!ticker) { var um=location.search.match(/[?&]symbol=(?:[^:]+:)?([A-Z0-9\\.]+)/i); if(um) ticker=um[1].toUpperCase(); }
+  if (!ticker) { var tm=document.title.match(/^([A-Z0-9\\.\\-]+)\\s+(?:Chart|chart)/); if(tm) ticker=tm[1]; }
 
   // ── Current price from OHLC header (works for any ticker) ──
   var currentPrice=null;
