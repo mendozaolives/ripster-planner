@@ -14,7 +14,7 @@
     <div class="logo-mark">☁</div>
     RIPSTER CLOUD PLANNER v2
   </div>
-  <div class="header-pill"><div class="live-dot"></div> TradingView Script · SPY 0DTE</div>
+  <div class="header-pill"><div class="live-dot"></div> TradingView Script · <span id="header-ticker">0DTE</span></div>
 </header>
 
 <div class="container">
@@ -111,7 +111,7 @@
         </div>
 
         <div class="cloud-pair" style="margin-bottom:0">
-          <div class="field"><label>SPY price</label><input type="number" id="spyPrice" step="0.01" placeholder="—"></div>
+          <div class="field"><label id="price-label">Price</label><input type="number" id="spyPrice" step="0.01" placeholder="—"></div>
           <div class="field"><label>Time ET (e.g. 11.5 = 11:30)</label><input type="number" id="spyHour" step="0.5" min="9" max="16" placeholder="—"></div>
         </div>
       </div>

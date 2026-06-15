@@ -52,9 +52,21 @@ const bookmarkletCode = `(function(){
   var fastTop    = Math.max(last[5], last[15]);
   var fastBottom = Math.min(last[5], last[15]);
 
+  // ── Ticker symbol ──
+  var ticker = null;
+  try {
+    var sym = chart.symbol();
+    if (sym) ticker = sym.split(':').pop();
+  } catch(e) {}
+  if (!ticker) {
+    var um = location.search.match(/[?&]symbol=(?:[^:]+:)?([A-Z0-9\\.]+)/i);
+    if (um) ticker = um[1].toUpperCase();
+  }
+
+  // ── Current price from OHLC header (works for any ticker) ──
   var currentPrice=null;
-  var cm=(document.body.innerText||'').match(/\\bC[\\s:]*([2-9]\\d{2}\\.\\d{2})\\b/);
-  if(cm) currentPrice=parseFloat(cm[1]);
+  var cm=(document.body.innerText||'').match(/\\bC[\\s:]*([\\d,]+\\.?\\d*)\\b/);
+  if(cm) currentPrice=parseFloat(cm[1].replace(/,/g,''));
 
   // Bullish: fast cloud center is BELOW slow cloud center
   var slowCenter = (slowTop + slowBottom) / 2;
@@ -66,7 +78,8 @@ const bookmarkletCode = `(function(){
 
   var result={
     setup:setup,
-    spy_price:currentPrice,
+    ticker:ticker,
+    price:currentPrice,
     time_et:parseFloat(etHour.toFixed(2)),
     slow_cloud_top:parseFloat(slowTop.toFixed(2)),
     slow_cloud_bottom:parseFloat(slowBottom.toFixed(2)),
@@ -78,8 +91,9 @@ const bookmarkletCode = `(function(){
     var gap=(slowBottom-fastTop).toFixed(2);
     toast(
       '<strong>☁ Ripster clouds copied!</strong>\\n'+
+      (ticker?ticker+' · ':'')+
       (setup==='bullish'?'🟢 Bullish':'🔴 Bearish')+
-      (currentPrice?'  ·  SPY $'+currentPrice.toFixed(2):'')+
+      (currentPrice?'  ·  $'+currentPrice.toFixed(2):'')+
       '\\nSlow (34/50): '+slowTop.toFixed(2)+' / '+slowBottom.toFixed(2)+
       '\\nFast  (5/12): '+fastTop.toFixed(2)+' / '+fastBottom.toFixed(2)+
       '\\nGap: '+gap+' pts'

@@ -1,5 +1,6 @@
 // ── Shared state ──
 let isBull = true;
+let currentTicker = '';
 
 // ── Helpers ──
 const f = n => parseFloat(n).toFixed(2);
@@ -33,20 +34,30 @@ function populateAndCalc(v) {
   const bull = v.setup !== 'bearish';
   applyTheme(bull);
 
+  // Support both new 'price' key and old 'spy_price' key
+  const price = v.price ?? v.spy_price ?? null;
+
+  if (v.ticker) {
+    currentTicker = v.ticker;
+    document.getElementById('price-label').textContent = v.ticker + ' price';
+    document.getElementById('header-ticker').textContent = v.ticker + ' 0DTE';
+  }
+
   setField('slowTop',  v.slow_cloud_top);
   setField('slowBot',  v.slow_cloud_bottom);
   setField('fastTop',  v.fast_cloud_top);
   setField('fastBot',  v.fast_cloud_bottom);
-  if (v.spy_price)  setField('spyPrice', v.spy_price);
-  if (v.time_et)    setField('spyHour',  v.time_et);
+  if (price)     setField('spyPrice', price);
+  if (v.time_et) setField('spyHour',  v.time_et);
 
+  const tickerLabel = currentTicker || 'Price';
   const lr = document.getElementById('last-read');
   lr.style.display = 'block';
   document.getElementById('last-read-rows').innerHTML = `
     <div class="last-read-row"><span class="lr-label">Setup</span><span class="lr-val ${bull?'cg':'cr'}">${bull?'🟢 Bullish':'🔴 Bearish'}</span></div>
     <div class="last-read-row"><span class="lr-label">${bull?'Green':'Red'} cloud (slow)</span><span class="lr-val">${f(v.slow_cloud_bottom)} – ${f(v.slow_cloud_top)}</span></div>
     <div class="last-read-row"><span class="lr-label">${bull?'Blue':'Yellow'} cloud (fast)</span><span class="lr-val">${f(v.fast_cloud_bottom)} – ${f(v.fast_cloud_top)}</span></div>
-    <div class="last-read-row"><span class="lr-label">SPY price</span><span class="lr-val">${v.spy_price ? '$'+f(v.spy_price) : '—'}</span></div>
+    <div class="last-read-row"><span class="lr-label">${tickerLabel} price</span><span class="lr-val">${price ? '$'+f(price) : '—'}</span></div>
     <div class="last-read-row"><span class="lr-label">Time ET</span><span class="lr-val">${v.time_et ? Math.floor(v.time_et)+':'+String(Math.round((v.time_et%1)*60)).padStart(2,'0') : '—'}</span></div>
   `;
 
