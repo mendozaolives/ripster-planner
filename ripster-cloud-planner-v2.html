@@ -507,6 +507,14 @@ function calc() {
 
   const timeOk = hour >= 10.5 && hour < 15;
   const gap = isBull ? slowBot - fastTop : fastBot - slowTop;
+  const gapPct = (gap / price) * 100;
+  const gapTier = gap <= 0 ? 'merged' : gapPct < 0.03 ? 'weak' : gapPct < 0.08 ? 'moderate' : 'strong';
+  const gapTierInfo = {
+    merged:   { label: 'Clouds merged — no separation',    color: '#f85149', short: 'Merged' },
+    weak:     { label: 'Weak separation — low conviction', color: '#d29922', short: 'Weak trend' },
+    moderate: { label: 'Moderate separation',              color: '#388bfd', short: 'Moderate trend' },
+    strong:   { label: 'Strong separation — trending',     color: '#3fb950', short: 'Strong trend' },
+  }[gapTier];
 
   let loc;
   if (isBull) {
@@ -543,6 +551,7 @@ function calc() {
   document.getElementById('dir-badges').innerHTML  =
     badge(isBull?'🟢 Bullish clouds':'🔴 Bearish clouds', isBull?'bg':'br') +
     badge(locLabels[loc], validEntry?(isBull?'bg':'br'):'ba') +
+    badge(gapTierInfo.short, gapTier==='strong'?'bg':gapTier==='merged'?'br':'ba') +
     badge(timeOk?'✓ Prime window':'⚠ Outside prime window', timeOk?'bg':'ba');
 
   // Signals
@@ -555,7 +564,7 @@ function calc() {
   document.getElementById('signals').innerHTML =
     sig(sc, `${isBull?'Green':'Red'} cloud (34/50): <strong>$${f(slowBot)} – $${f(slowTop)}</strong> · width ${f(slowTop-slowBot)} pts`) +
     sig(fc, `${isBull?'Blue':'Yellow'} cloud (5/12): <strong>$${f(fastBot)} – $${f(fastTop)}</strong>`) +
-    sig(gap>0?sc:'#d29922', `Gap: <strong>${f(gap)} pts</strong> — ${gap>0?'healthy separation':'clouds merged'}`) +
+    sig(gapTierInfo.color, `Gap: <strong>${f(gap)} pts</strong> (${gapPct.toFixed(3)}% of price) — ${gapTierInfo.label}`) +
     sig(timeOk?'#3fb950':'#d29922', `${Math.floor(hour)}:${String(Math.round((hour%1)*60)).padStart(2,'0')} ET — ${timeOk?'prime window (10:30am–3pm)':'outside ideal window'}`) +
     sig(validEntry?sc:'#f85149', validEntry
       ? `✓ ${isBull?'Above both clouds':'Below both clouds'} — valid ${isBull?'call':'put'} setup`
@@ -567,13 +576,19 @@ function calc() {
   if (isBull) { stopPx=slowBot-0.10; stopDist=price-stopPx; t1=slowTop+(slowTop-slowBot); t2=price+3; }
   else        { stopPx=fastTop+0.10; stopDist=stopPx-price; t1=slowBot-(fastTop-slowTop); t2=price-3; }
 
-  const qClass = validEntry&&timeOk?(isBull?'cg':'cr'):'ca';
+  let quality, qClass;
+  if      (!validEntry)            { quality = '—';                  qClass = 'cm'; }
+  else if (gapTier === 'merged')   { quality = 'D';                   qClass = 'cr'; }
+  else if (gapTier === 'weak')     { quality = 'C';                   qClass = 'ca'; }
+  else if (gapTier === 'moderate') { quality = timeOk ? 'B+' : 'B';   qClass = 'ca'; }
+  else                              { quality = timeOk ? 'A+' : 'A';   qClass = isBull?'cg':'cr'; }
+
   document.getElementById('metrics').innerHTML = `
     <div class="metric"><div class="metric-label">Direction</div><div class="metric-value ${validEntry?(isBull?'cg':'cr'):'ca'}">${validEntry?(isBull?'CALLS':'PUTS'):'WAIT'}</div></div>
     <div class="metric"><div class="metric-label">Hard stop</div><div class="metric-value cr">$${f(stopPx)}</div><div class="metric-sub">${isBull?'Below green':'Above yellow'}</div></div>
     <div class="metric"><div class="metric-label">Stop distance</div><div class="metric-value">${f(stopDist)}<span style="font-size:13px;color:var(--muted)"> pts</span></div><div class="metric-sub">~$${f(stopDist*100)}/contract</div></div>
     <div class="metric"><div class="metric-label">Target 1</div><div class="metric-value cg">$${f(isBull?t1:t2)}</div></div>
-    <div class="metric"><div class="metric-label">Quality</div><div class="metric-value ${qClass}">${validEntry&&timeOk?'A+':validEntry?'B':'—'}</div></div>`;
+    <div class="metric"><div class="metric-label">Quality</div><div class="metric-value ${qClass}">${quality}</div><div class="metric-sub">${gapTierInfo.short}${validEntry&&!timeOk?' · outside window':''}</div></div>`;
 
   // Ladder
   if (isBull) {
@@ -605,15 +620,43 @@ function calc() {
 
   // Entry table
   if (validEntry) {
-    const st = isBull
-      ? [`<span style="color:var(--green-txt);font-weight:600">${atm}C</span>`, `<span style="color:var(--green-txt);font-weight:600">${atm+1}C</span>`]
-      : [`<span style="color:var(--red-txt);font-weight:600">${atm}P</span>`,   `<span style="color:var(--red-txt);font-weight:600">${atm-1}P</span>`];
-    const pullEntry = isBull ? f(fastTop) : f(fastBot+0.10);
-    const pullLbl   = isBull ? 'blue top' : 'yellow bottom';
-    document.getElementById('etbody').innerHTML = `
-      <tr><td>Aggressive <span class="badge bm" style="font-size:10px;padding:2px 7px">ATM</span></td><td class="tm">${st[0]}</td><td class="tm">$${f(price)}</td><td class="tm cr">$${f(stopPx)}</td><td class="tm cg">$${f(isBull?t1:t2)}</td><td class="tm cg">$${f(isBull?t2:t1)}</td></tr>
-      <tr><td>Balanced <span class="badge bm" style="font-size:10px;padding:2px 7px">1 OTM</span></td><td class="tm">${st[1]}</td><td class="tm">$${f(price)}</td><td class="tm cr">$${f(stopPx)}</td><td class="tm cg">$${f(isBull?t1+1:t2-1)}</td><td class="tm cg">$${f(isBull?t2+1:t1-1)}</td></tr>
-      <tr><td>${isBull?'Pullback':'Bounce'} <span class="badge ${isBull?'bg':'br'}" style="font-size:10px;padding:2px 7px">best price</span></td><td class="tm">${st[0]}</td><td class="tm">$${pullEntry} (${pullLbl})</td><td class="tm cr">$${f(stopPx)}</td><td class="tm cg">$${f(isBull?t1:t2)}</td><td class="tm cg">$${f(isBull?t2:t1)}</td></tr>`;
+    const dirSuffix    = isBull ? 'C' : 'P';
+    const strikeColor  = isBull ? 'var(--green-txt)' : 'var(--red-txt)';
+    const strikeSpan   = n => `<span style="color:${strikeColor};font-weight:600">${n}${dirSuffix}</span>`;
+    const oneOtmStrike = isBull ? atm + 1 : atm - 1;
+    const pullEntry    = isBull ? f(fastTop) : f(fastBot+0.10);
+    const pullLbl      = isBull ? 'blue top' : 'yellow bottom';
+
+    // Further-OTM strikes are only offered when cloud separation (gapTier)
+    // actually supports the move reaching that far — thin gaps stay ATM/1-OTM only.
+    const rows = [
+      { label: `Aggressive <span class="badge bm" style="font-size:10px;padding:2px 7px">ATM</span>`,    strike: atm,         entry: f(price) },
+      { label: `Balanced <span class="badge bm" style="font-size:10px;padding:2px 7px">1 OTM</span>`,    strike: oneOtmStrike, entry: f(price) },
+    ];
+    const usedStrikes = new Set([atm, oneOtmStrike]);
+
+    if (gapTier === 'moderate' || gapTier === 'strong') {
+      const cloudStrike = Math.round(t1);
+      if (!usedStrikes.has(cloudStrike)) {
+        usedStrikes.add(cloudStrike);
+        rows.push({ label: `Swing <span class="badge bm" style="font-size:10px;padding:2px 7px">cloud target</span>`, strike: cloudStrike, entry: f(price) });
+      }
+    }
+    if (gapTier === 'strong') {
+      const runnerStrike = Math.round(t2);
+      if (!usedStrikes.has(runnerStrike)) {
+        usedStrikes.add(runnerStrike);
+        rows.push({ label: `Runner <span class="badge bm" style="font-size:10px;padding:2px 7px">extended</span>`, strike: runnerStrike, entry: f(price) });
+      }
+    }
+    rows.sort((a, b) => isBull ? a.strike - b.strike : b.strike - a.strike);
+    rows.push({ label: `${isBull?'Pullback':'Bounce'} <span class="badge ${isBull?'bg':'br'}" style="font-size:10px;padding:2px 7px">best price</span>`, strike: atm, entry: `${pullEntry} (${pullLbl})` });
+
+    document.getElementById('etbody').innerHTML = rows.map(r => `
+      <tr><td>${r.label}</td><td class="tm">${strikeSpan(r.strike)}</td><td class="tm">$${r.entry}</td><td class="tm cr">$${f(stopPx)}</td><td class="tm cg">$${f(isBull?t1:t2)}</td><td class="tm cg">$${f(isBull?t2:t1)}</td></tr>`).join('') +
+      (gapTier === 'weak' || gapTier === 'merged'
+        ? `<tr><td colspan="6"><div class="wait-box" style="background:var(--bg3);border-color:var(--border2);color:var(--muted)"><span style="font-size:16px;flex-shrink:0">ℹ</span><div>Gap too thin for further OTM strikes — stick to ATM/1 OTM until cloud separation widens.</div></div></td></tr>`
+        : '');
     document.getElementById('stopRules').innerHTML = isBull
       ? sig('#f85149',`<strong>Hard stop:</strong> 5m candle closes below green cloud bottom ($${f(stopPx)})`) +
         sig('#d29922',`<strong>Trail:</strong> Once $${f(t1)} hit, move stop up to blue cloud top ($${f(fastTop)})`) +
