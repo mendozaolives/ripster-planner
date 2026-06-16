@@ -516,6 +516,18 @@ function calc() {
     strong:   { label: 'Strong separation — trending',     color: '#3fb950', short: 'Strong trend' },
   }[gapTier];
 
+  // How far price has already run beyond the cloud it broke — distinguishes a
+  // fresh break from a confirmed, healthy continuation from a stretched move
+  // that's at higher risk of reverting back toward the cloud before any target.
+  const extensionPts = isBull ? price - slowTop : slowBot - price;
+  const extensionPct = (extensionPts / price) * 100;
+  const extensionTier = extensionPct <= 0.05 ? 'fresh' : extensionPct <= 0.25 ? 'extended' : 'stretched';
+  const extensionTierInfo = {
+    fresh:     { label: 'Fresh break — early entry, momentum unconfirmed',        color: '#388bfd', short: 'Fresh break' },
+    extended:  { label: 'Confirmed extension — healthy trend continuation',       color: '#3fb950', short: 'Confirmed move' },
+    stretched: { label: 'Stretched from cloud — chase risk, consider a pullback', color: '#d29922', short: 'Stretched ⚠' },
+  }[extensionTier];
+
   let loc;
   if (isBull) {
     if      (price > slowTop)  loc = 'above_both';
@@ -552,6 +564,7 @@ function calc() {
     badge(isBull?'🟢 Bullish clouds':'🔴 Bearish clouds', isBull?'bg':'br') +
     badge(locLabels[loc], validEntry?(isBull?'bg':'br'):'ba') +
     badge(gapTierInfo.short, gapTier==='strong'?'bg':gapTier==='merged'?'br':'ba') +
+    (validEntry ? badge(extensionTierInfo.short, extensionTier==='stretched'?'ba':extensionTier==='extended'?'bg':'bm') : '') +
     badge(timeOk?'✓ Prime window':'⚠ Outside prime window', timeOk?'bg':'ba');
 
   // Signals
@@ -565,6 +578,7 @@ function calc() {
     sig(sc, `${isBull?'Green':'Red'} cloud (34/50): <strong>$${f(slowBot)} – $${f(slowTop)}</strong> · width ${f(slowTop-slowBot)} pts`) +
     sig(fc, `${isBull?'Blue':'Yellow'} cloud (5/12): <strong>$${f(fastBot)} – $${f(fastTop)}</strong>`) +
     sig(gapTierInfo.color, `Gap: <strong>${f(gap)} pts</strong> (${gapPct.toFixed(3)}% of price) — ${gapTierInfo.label}`) +
+    (validEntry ? sig(extensionTierInfo.color, `Extension: <strong>${f(extensionPts)} pts</strong> (${extensionPct.toFixed(3)}% of price) beyond ${isBull?'green':'red'} cloud — ${extensionTierInfo.label}`) : '') +
     sig(timeOk?'#3fb950':'#d29922', `${Math.floor(hour)}:${String(Math.round((hour%1)*60)).padStart(2,'0')} ET — ${timeOk?'prime window (10:30am–3pm)':'outside ideal window'}`) +
     sig(validEntry?sc:'#f85149', validEntry
       ? `✓ ${isBull?'Above both clouds':'Below both clouds'} — valid ${isBull?'call':'put'} setup`
@@ -576,19 +590,33 @@ function calc() {
   if (isBull) { stopPx=slowBot-0.10; stopDist=price-stopPx; t1=slowTop+(slowTop-slowBot); t2=price+3; }
   else        { stopPx=fastTop+0.10; stopDist=stopPx-price; t1=slowBot-(fastTop-slowTop); t2=price-3; }
 
+  // Quality blends cloud separation (trend strength) with how far price has
+  // already run beyond the cloud (confirmation vs. chase risk) — this mirrors
+  // how Ripster cloud traders actually read a setup: a wide gap with confirmed
+  // follow-through beats a wide gap nobody has acted on yet, and a stretched
+  // price — even on a strong gap — carries more chase risk than a fresh break.
+  const qualityMatrix = {
+    merged:   { fresh: 'D', extended: 'D', stretched: 'D' },
+    weak:     { fresh: 'C', extended: 'C', stretched: 'D' },
+    moderate: { fresh: 'B', extended: 'A', stretched: 'C' },
+    strong:   { fresh: 'A', extended: 'A', stretched: 'B' },
+  };
   let quality, qClass;
-  if      (!validEntry)            { quality = '—';                  qClass = 'cm'; }
-  else if (gapTier === 'merged')   { quality = 'D';                   qClass = 'cr'; }
-  else if (gapTier === 'weak')     { quality = 'C';                   qClass = 'ca'; }
-  else if (gapTier === 'moderate') { quality = timeOk ? 'B+' : 'B';   qClass = 'ca'; }
-  else                              { quality = timeOk ? 'A+' : 'A';   qClass = isBull?'cg':'cr'; }
+  if (!validEntry) {
+    quality = '—'; qClass = 'cm';
+  } else {
+    let base = qualityMatrix[gapTier][extensionTier];
+    if (timeOk && (base === 'A' || base === 'B')) base += '+';
+    quality = base;
+    qClass = base[0] === 'A' ? (isBull?'cg':'cr') : base[0] === 'D' ? 'cr' : 'ca';
+  }
 
   document.getElementById('metrics').innerHTML = `
     <div class="metric"><div class="metric-label">Direction</div><div class="metric-value ${validEntry?(isBull?'cg':'cr'):'ca'}">${validEntry?(isBull?'CALLS':'PUTS'):'WAIT'}</div></div>
     <div class="metric"><div class="metric-label">Hard stop</div><div class="metric-value cr">$${f(stopPx)}</div><div class="metric-sub">${isBull?'Below green':'Above yellow'}</div></div>
     <div class="metric"><div class="metric-label">Stop distance</div><div class="metric-value">${f(stopDist)}<span style="font-size:13px;color:var(--muted)"> pts</span></div><div class="metric-sub">~$${f(stopDist*100)}/contract</div></div>
     <div class="metric"><div class="metric-label">Target 1</div><div class="metric-value cg">$${f(isBull?t1:t2)}</div></div>
-    <div class="metric"><div class="metric-label">Quality</div><div class="metric-value ${qClass}">${quality}</div><div class="metric-sub">${gapTierInfo.short}${validEntry&&!timeOk?' · outside window':''}</div></div>`;
+    <div class="metric"><div class="metric-label">Quality</div><div class="metric-value ${qClass}">${quality}</div><div class="metric-sub">${validEntry ? gapTierInfo.short+' · '+extensionTierInfo.short : gapTierInfo.short}</div></div>`;
 
   // Ladder
   if (isBull) {
@@ -626,23 +654,33 @@ function calc() {
     const oneOtmStrike = isBull ? atm + 1 : atm - 1;
     const pullEntry    = isBull ? f(fastTop) : f(fastBot+0.10);
     const pullLbl      = isBull ? 'blue top' : 'yellow bottom';
+    const stretched    = extensionTier === 'stretched';
 
-    // Further-OTM strikes are only offered when cloud separation (gapTier)
-    // actually supports the move reaching that far — thin gaps stay ATM/1-OTM only.
+    // Further-OTM strikes require both: (1) enough cloud separation that the
+    // move structurally has room to run, and (2) price not already stretched
+    // beyond the cloud — chasing OTM strikes into an extended move adds risk
+    // without the confirmation a pullback-and-continuation would give.
+    const aggressiveBadge = stretched
+      ? `<span class="badge ba" style="font-size:10px;padding:2px 7px">ATM · chasing</span>`
+      : `<span class="badge bm" style="font-size:10px;padding:2px 7px">ATM</span>`;
+    const pullbackBadge = stretched
+      ? `<span class="badge ${isBull?'bg':'br'}" style="font-size:10px;padding:2px 7px">preferred — pullback</span>`
+      : `<span class="badge ${isBull?'bg':'br'}" style="font-size:10px;padding:2px 7px">best price</span>`;
+
     const rows = [
-      { label: `Aggressive <span class="badge bm" style="font-size:10px;padding:2px 7px">ATM</span>`,    strike: atm,         entry: f(price) },
+      { label: `Aggressive ${aggressiveBadge}`,                                                          strike: atm,          entry: f(price) },
       { label: `Balanced <span class="badge bm" style="font-size:10px;padding:2px 7px">1 OTM</span>`,    strike: oneOtmStrike, entry: f(price) },
     ];
     const usedStrikes = new Set([atm, oneOtmStrike]);
 
-    if (gapTier === 'moderate' || gapTier === 'strong') {
+    if (!stretched && (gapTier === 'moderate' || gapTier === 'strong')) {
       const cloudStrike = Math.round(t1);
       if (!usedStrikes.has(cloudStrike)) {
         usedStrikes.add(cloudStrike);
         rows.push({ label: `Swing <span class="badge bm" style="font-size:10px;padding:2px 7px">cloud target</span>`, strike: cloudStrike, entry: f(price) });
       }
     }
-    if (gapTier === 'strong') {
+    if (!stretched && gapTier === 'strong') {
       const runnerStrike = Math.round(t2);
       if (!usedStrikes.has(runnerStrike)) {
         usedStrikes.add(runnerStrike);
@@ -650,13 +688,18 @@ function calc() {
       }
     }
     rows.sort((a, b) => isBull ? a.strike - b.strike : b.strike - a.strike);
-    rows.push({ label: `${isBull?'Pullback':'Bounce'} <span class="badge ${isBull?'bg':'br'}" style="font-size:10px;padding:2px 7px">best price</span>`, strike: atm, entry: `${pullEntry} (${pullLbl})` });
+    rows.push({ label: `${isBull?'Pullback':'Bounce'} ${pullbackBadge}`, strike: atm, entry: `${pullEntry} (${pullLbl})` });
+
+    let tableNote = '';
+    if (stretched) {
+      tableNote = `Price is already stretched beyond the cloud — skip further OTM strikes and consider waiting for a pullback to the ${isBull?'blue':'yellow'} cloud edge instead of chasing.`;
+    } else if (gapTier === 'weak' || gapTier === 'merged') {
+      tableNote = 'Gap too thin for further OTM strikes — stick to ATM/1 OTM until cloud separation widens.';
+    }
 
     document.getElementById('etbody').innerHTML = rows.map(r => `
       <tr><td>${r.label}</td><td class="tm">${strikeSpan(r.strike)}</td><td class="tm">$${r.entry}</td><td class="tm cr">$${f(stopPx)}</td><td class="tm cg">$${f(isBull?t1:t2)}</td><td class="tm cg">$${f(isBull?t2:t1)}</td></tr>`).join('') +
-      (gapTier === 'weak' || gapTier === 'merged'
-        ? `<tr><td colspan="6"><div class="wait-box" style="background:var(--bg3);border-color:var(--border2);color:var(--muted)"><span style="font-size:16px;flex-shrink:0">ℹ</span><div>Gap too thin for further OTM strikes — stick to ATM/1 OTM until cloud separation widens.</div></div></td></tr>`
-        : '');
+      (tableNote ? `<tr><td colspan="6"><div class="wait-box" style="background:var(--bg3);border-color:var(--border2);color:var(--muted)"><span style="font-size:16px;flex-shrink:0">ℹ</span><div>${tableNote}</div></div></td></tr>` : '');
     document.getElementById('stopRules').innerHTML = isBull
       ? sig('#f85149',`<strong>Hard stop:</strong> 5m candle closes below green cloud bottom ($${f(stopPx)})`) +
         sig('#d29922',`<strong>Trail:</strong> Once $${f(t1)} hit, move stop up to blue cloud top ($${f(fastTop)})`) +
